@@ -19,6 +19,7 @@ const {
   connectionDefinitions,
   connectionFromPromisedArray,
   connectionArgs,
+  mutationWithClientMutationId,
 } = require('graphql-relay');
 const { nodeInterface, nodeField } = require('./src/node');
 
@@ -84,9 +85,9 @@ const queryType = new GraphQLObjectType({
   }
 });
 
-const videoInputType = new GraphQLInputObjectType({
-  name: 'VideoInput',
-  fields: {
+const videoMutation = mutationWithClientMutationId({
+  name: 'AddVideo',
+  inputFields: {
     title: {
       type: new GraphQLNonNull(GraphQLString),
       description: 'The title of the video.',
@@ -99,22 +100,24 @@ const videoInputType = new GraphQLInputObjectType({
       type: new GraphQLNonNull(GraphQLBoolean),
       description: 'Whether or not the video has been released on egghead.',
     }
-  }
+  },
+  outputFields: {
+    video: {
+      type: videoType
+    }
+  },
+  mutateAndGetPayload: args => new Promise((resolve, reject) => {
+    Promise.resolve(createVideo(args))
+    .then(video => resolve({ video }))
+    .catch(reject);
+  }),
 });
 
 const mutationType = new GraphQLObjectType({
   name: 'Mutation',
   description: 'The root Mutation type.',
   fields: {
-    createVideo: {
-      type: videoType,
-      args: {
-        video: {
-          type: new GraphQLNonNull(videoInputType),
-        }
-      },
-      resolve: (_, args) => createVideo(args.video)
-    }
+    createVideo: videoMutation
   },
 });
 
@@ -130,5 +133,5 @@ server.use('/graphql', graphqlHTTP({
 }));
 
 server.listen(PORT, () => {
-  console.log('Listening on http://localhost:3000');
+  console.log('Listening on http://localhost:' + PORT);
 });
